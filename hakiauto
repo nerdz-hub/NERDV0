@@ -1,0 +1,268 @@
+-- =========================================================
+-- 1. โหลด UI Rayfield ขึ้นมาก่อนเป็นอันดับแรกสุด
+-- =========================================================
+local Rayfield = nil
+local success, err = pcall(function()
+    Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
+end)
+
+if not success or not Rayfield then
+    Rayfield = loadstring(game:HttpGet('https://raw.githubusercontent.com/SiriusSoftwareLtd/Rayfield/main/source.lua'))()
+end
+
+local Window = Rayfield:CreateWindow({
+    Name = "Nerd Hub v2", 
+    Theme = "Green", 
+    Theme = "Amethyst",
+    LoadingTitle = "BOBBY TELEPORT SYSTEM", 
+    KeySystem = false
+})
+local MainTab = Window:CreateTab("🏡 Main Farm", 4483362458)
+
+_G.AutoFarmHaki = true 
+
+MainTab:CreateToggle({
+   Name = "Auto Haki Farm",
+   CurrentValue = true,
+   Flag = "Toggle_Haki",
+   Callback = function(Value) _G.AutoFarmHaki = Value end,
+})
+
+-- =========================================================
+-- 2. บริการพื้นฐาน & ตั้งค่าตัวแปรระบบ (Optimized)
+-- =========================================================
+local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local TeleportService = game:GetService("TeleportService")
+local TweenService = game:GetService("TweenService")
+local GuiService = game:GetService("GuiService")
+local VirtualInputManager = game:GetService("VirtualInputManager")
+
+local LocalPlayer = Players.LocalPlayer
+local PlayerName = LocalPlayer.Name 
+local PlayerGui = LocalPlayer:WaitForChild("PlayerGui")
+
+local isRejoining = false
+local hasSpawnedClicked = false 
+local AliveFolder = workspace:WaitForChild("Alive", 5)
+
+-- ฟังก์ชัน Rejoin เซิร์ฟเวอร์
+local function rejoinServer()
+    if isRejoining then return end
+    isRejoining = true
+    print("Haki = 0 rejoin now")
+    task.wait(0.5)
+    
+    if #Players:GetPlayers() <= 1 then
+        TeleportService:Teleport(game.PlaceId, LocalPlayer)
+    else
+        TeleportService:TeleportToPlaceInstance(game.PlaceId, game.JobId, LocalPlayer)
+    end
+end
+
+-- =========================================================
+-- 3. ระบบ Auto Spawn ดั้งเดิมของคุณ (เร่งสปีด 5 วินาที)
+-- =========================================================
+local function autoSpawn()
+    if hasSpawnedClicked then return end
+    
+    pcall(function()
+        local loadGui = PlayerGui:FindFirstChild("Load")
+        if loadGui and loadGui.Enabled == true then
+            local frame = loadGui:FindFirstChild("Frame")
+            local spawnButton = frame and frame:FindFirstChild("Load")
+            
+            if spawnButton then
+                hasSpawnedClicked = true
+                print(" Fire Engine Started...")
+                
+                if firesignal then
+                    pcall(function() firesignal(spawnButton.MouseButton1Click) end)
+                    pcall(function() firesignal(spawnButton.Activated) end)
+                end
+                
+                pcall(function() spawnButton.MouseButton1Click:Fire() end)
+                pcall(function() spawnButton.Activated:Fire() end)
+                
+                task.spawn(function()
+                    local startTime = os.clock()
+                    while loadGui.Enabled == true and (os.clock() - startTime) < 5 do
+                        pcall(function()
+                            GuiService.SelectedObject = spawnButton
+                            task.wait(0.01)
+                            
+                            VirtualInputManager:SendKeyEvent(true, Enum.KeyCode.Return, false, game)
+                            task.wait(0.02)
+                            VirtualInputManager:SendKeyEvent(false, Enum.KeyCode.Return, false, game)
+                            
+                            VirtualInputManager:SendKeyEvent(true, Enum.KeyCode.Space, false, game)
+                            task.wait(0.02)
+                            VirtualInputManager:SendKeyEvent(false, Enum.KeyCode.Space, false, game)
+                        end)
+                        task.wait(0.05)
+                    end
+                    pcall(function() GuiService.SelectedObject = nil end)
+                end)
+            end
+        end
+    end)
+end
+
+-- ลูปดักตรวจจับหน้าจอเกิด
+task.spawn(function()
+    while true do
+        task.wait(0.5)
+        local loadGui = PlayerGui:FindFirstChild("Load")
+        if loadGui then
+            if loadGui.Enabled == true then
+                autoSpawn()
+            else
+                hasSpawnedClicked = false 
+            end
+        end
+    end
+end)
+
+-- =========================================================
+-- 4. ระบบแอนิเมชันหลอด GUI รูปแบบปลอดภัย
+-- =========================================================
+local function safeTweenHakiBar(currentHaki)
+    pcall(function()
+        if _G.Data and _G.Data[LocalPlayer.UserId] then
+            local healthBar = PlayerGui:FindFirstChild("HealthBar")
+            local hakiFrame = healthBar and healthBar.Frame:FindFirstChild("Haki")
+            if hakiFrame then
+                local maxHaki = _G.Data[LocalPlayer.UserId].Stats.Haki.Level + 50
+                local targetSize = UDim2.new(currentHaki / maxHaki, 0, 1, 0)
+                
+                local tweenInfo = TweenInfo.new(0.25, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+                local tween = TweenService:Create(hakiFrame.Frame, tweenInfo, {Size = targetSize})
+                tween:Play()
+            end
+        end
+    end)
+end
+
+-- =========================================================
+-- 5. ลูปควบคุมกลไกการฟาร์ม (เปลี่ยนเป็น Teleport ไปหาบอสโดยตรง)
+-- =========================================================
+task.spawn(function()
+    local hasTriggeredHaki = false -- ตัวแปรเช็คการกดเปิด Q+R ต่อการเกิด 1 รอบ
+    
+    while true do
+        task.wait(0.1) -- ปรับดีเลย์สมดุล ลื่นไหล ไม่แลค
+        
+        local loadGui = PlayerGui:FindFirstChild("Load")
+        local isMenuClosed = loadGui and (loadGui.Enabled == false)
+        
+        if _G.AutoFarmHaki and isMenuClosed and not isRejoining then
+            local character = LocalPlayer.Character
+            local rootPart = character and character:FindFirstChild("HumanoidRootPart")
+            local humanoid = character and character:FindFirstChild("Humanoid")
+            
+            if character and rootPart and humanoid and humanoid.Health > 0 then
+                
+                if AliveFolder then
+                    -- 🎯 ค้นหาตัวมอนสเตอร์เป้าหมาย Lv22 Angry Bobby
+                    local bobby = AliveFolder:FindFirstChild("Lv22 Angry Bobby")
+                    local enemyRoot = bobby and bobby:FindFirstChild("HumanoidRootPart")
+                    local enemyHumanoid = bobby and bobby:FindFirstChild("Humanoid")
+                    
+                    -- เช็คว่าบอสเกิดและยังมีชีวิตอยู่
+                    if bobby and enemyRoot and enemyHumanoid and enemyHumanoid.Health > 0 then
+                        
+                        -- ⚡ [แก้ไขจุดหลัก] เปลี่ยนพิกัดวาร์ปไปล็อกตึงไว้ที่ตัว Lv22 Angry Bobby โดยตรงแทนเซฟโซน
+                        rootPart.CFrame = enemyRoot.CFrame
+                        
+                        -- 👁️🛡️ ระบบกดเปิดคอมโบ Q+R อัตโนมัติเมื่อเข้าถึงตัวบอส
+                        if not hasTriggeredHaki then
+                            hasTriggeredHaki = true
+                            print("[System] วาร์ปถึงตัวบอสแล้ว! เปิดใช้งานฮาคิคู่ Q+R ทันที...")
+                            
+                            -- กดเปิด Q
+                            VirtualInputManager:SendKeyEvent(true, Enum.KeyCode.Q, false, game)
+                            task.wait(0.02)
+                            VirtualInputManager:SendKeyEvent(false, Enum.KeyCode.Q, false, game)
+                            
+                            task.wait(0.03)
+                            
+                            -- กดเปิด R
+                            VirtualInputManager:SendKeyEvent(true, Enum.KeyCode.R, false, game)
+                            task.wait(0.02)
+                            VirtualInputManager:SendKeyEvent(false, Enum.KeyCode.R, false, game)
+                        end
+                        
+                        -- สั่งยิงแรง Click ตีจากมอนสเตอร์มาที่ชื่อผู้เล่นโดยตรงเพื่อเร่งแต้ม
+                        local attackCooldowns = bobby:FindFirstChild("AttackCooldowns")
+                        local clickObject = attackCooldowns and attackCooldowns:FindFirstChild("Click")
+                        
+                        if clickObject then
+                            if clickObject:IsA("RemoteEvent") then
+                                clickObject:FireServer(PlayerName)
+                            elseif clickObject:IsA("BindableEvent") then
+                                clickObject:Fire(PlayerName)
+                            elseif clickObject:IsA("ObjectValue") or clickObject:IsA("StringValue") then
+                                clickObject.Value = PlayerName
+                            end
+                        end
+                        
+                        -- เพิ่มแต้ม Damage Contribution
+                        local damageFolder = bobby:FindFirstChild("DamageContribution")
+                        local contrib = damageFolder and damageFolder:FindFirstChild("Lv22 Angry Bobby")
+                        if contrib then
+                            contrib.Value = contrib.Value + 25
+                        end
+                        
+                    else
+                        -- กรณีบอสตายหรือยังไม่เกิด สามารถใส่โค้ดให้ไปจุดอื่นหรือยืนรอตรงนี้ได้
+                        print("[System] กำลังรอ Lv22 Angry Bobby เกิด...")
+                    end
+                end
+            else
+                -- ถ้าผู้เล่นตาย ให้เตรียมพร้อมกด Q+R ใหม่ในรอบถัดไป
+                hasTriggeredHaki = false
+            end
+            
+            -- ตรวจสอบพลังงานฮาคิของตัวเอง
+            local chkHaki = LocalPlayer:GetAttribute("HakiAmount") or 0
+            if chkHaki <= 0 and hasTriggeredHaki then
+                rejoinServer()
+            end
+        end
+    end
+end)
+
+-- =========================================================
+-- 6. ลูปตรวจสอบค่าฮาคิเพื่อ Rejoin เบื้องหลัง
+-- =========================================================
+task.spawn(function()
+    LocalPlayer.AttributeChanged:Connect(function(attr)
+        if attr == "HakiAmount" and _G.AutoFarmHaki and not isRejoining then
+            local currentHaki = LocalPlayer:GetAttribute("HakiAmount") or 0
+            safeTweenHakiBar(currentHaki)
+            
+            if currentHaki <= 0 then
+                rejoinServer()
+            end
+        end
+    end)
+
+    while true do
+        task.wait(1.5)
+        if _G.AutoFarmHaki and not isRejoining then
+            pcall(function()
+                local currentHaki = LocalPlayer:GetAttribute("HakiAmount") or 0
+                if currentHaki <= 0 then 
+                    rejoinServer() 
+                end
+            end)
+        end
+    end
+end)
+
+Rayfield:Notify({
+    Title = "Nerd", 
+    Content = "🎯 เปลี่ยนระบบเป็นวาร์ปติดตามตัว Lv22 Angry Bobby เรียบร้อยแล้ว!", 
+    Duration = 5, 
+    Image = 4483362458
+})
