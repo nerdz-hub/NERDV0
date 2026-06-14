@@ -1,7 +1,7 @@
 -- =========================================================
 -- 1. ระบบ Whitelist จาก GitHub (ต้องมีไฟล์ .txt บน GitHub)
 -- =========================================================
-local WhitelistURL = ""
+local WhitelistURL = "https://raw.githubusercontent.com/nerdz-hub/NERDV0/refs/heads/main/whitelist"
 local HWID = game:GetService("RbxAnalyticsService"):GetClientId()
 
 local function checkWhitelist()
