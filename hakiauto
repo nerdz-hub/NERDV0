@@ -1,0 +1,104 @@
+-- =========================================================
+-- 1. ระบบ Whitelist จาก GitHub (ต้องมีไฟล์ .txt บน GitHub)
+-- =========================================================
+local WhitelistURL = ""
+local HWID = game:GetService("RbxAnalyticsService"):GetClientId()
+
+local function checkWhitelist()
+    local success, response = pcall(function()
+        return game:HttpGet(WhitelistURL)
+    end)
+    
+    if success and response then
+        if not string.find(response, HWID) then
+            game.StarterGui:SetCore("SendNotification", {
+                Title = "Nerd Hub Access",
+                Content = "HWID ของคุณไม่ได้รับอนุญาต!",
+                Duration = 10
+            })
+            error("Access Denied: HWID Not Whitelisted")
+        end
+    else
+        error("ไม่สามารถเชื่อมต่อระบบ Whitelist ได้")
+    end
+end
+
+checkWhitelist() -- ตรวจสอบก่อนเริ่มงาน
+
+-- =========================================================
+-- 2. เริ่มโหลด Rayfield UI
+-- =========================================================
+local Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
+
+local Window = Rayfield:CreateWindow({
+    Name = "Nerd Hub v2",  
+    Theme = "Amethyst",
+    LoadingTitle = "Contact ig:cvnerdz_", 
+    KeySystem = false
+})
+
+local MainTab = Window:CreateTab("Main Farm", 4483362458)
+_G.AutoFarmHaki = true 
+
+MainTab:CreateToggle({
+   Name = "Auto Haki Farm",
+   CurrentValue = true,
+   Flag = "Toggle_Haki",
+   Callback = function(Value) _G.AutoFarmHaki = Value end,
+})
+
+-- =========================================================
+-- 3. ระบบหลัก (Logic)
+-- =========================================================
+local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local TeleportService = game:GetService("TeleportService")
+local TweenService = game:GetService("TweenService")
+local GuiService = game:GetService("GuiService")
+local VirtualInputManager = game:GetService("VirtualInputManager")
+
+local LocalPlayer = Players.LocalPlayer
+local PlayerName = LocalPlayer.Name 
+local PlayerGui = LocalPlayer:WaitForChild("PlayerGui")
+local AliveFolder = workspace:WaitForChild("Alive", 5)
+local isRejoining = false
+local hasSpawnedClicked = false 
+
+-- [ฟังก์ชันพื้นฐานคงเดิม]
+local function rejoinServer()
+    if isRejoining then return end
+    isRejoining = true
+    TeleportService:Teleport(game.PlaceId, LocalPlayer)
+end
+
+-- [ลูปการฟาร์มและตรวจสอบฮาคิ]
+task.spawn(function()
+    local hasTriggeredHaki = false
+    while true do
+        task.wait(0.1)
+        local loadGui = PlayerGui:FindFirstChild("Load")
+        if _G.AutoFarmHaki and (loadGui and loadGui.Enabled == false) and not isRejoining then
+            local rootPart = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+            local bobby = AliveFolder:FindFirstChild("Lv22 Angry Bobby")
+            
+            if rootPart and bobby and bobby:FindFirstChild("HumanoidRootPart") then
+                rootPart.CFrame = bobby.HumanoidRootPart.CFrame
+                
+                if not hasTriggeredHaki then
+                    hasTriggeredHaki = true
+                    VirtualInputManager:SendKeyEvent(true, Enum.KeyCode.Q, false, game)
+                    task.wait(0.05)
+                    VirtualInputManager:SendKeyEvent(true, Enum.KeyCode.R, false, game)
+                end
+                
+                -- โค้ดโจมตีที่คุณต้องการ...
+            else
+                hasTriggeredHaki = false
+            end
+            
+            if (LocalPlayer:GetAttribute("HakiAmount") or 0) <= 0 then rejoinServer() end
+        end
+    end
+end)
+
+Rayfield:Notify({Title = "Nerd Hub", Content = "โหลดระบบเรียบร้อยแล้ว!", Duration = 5})
